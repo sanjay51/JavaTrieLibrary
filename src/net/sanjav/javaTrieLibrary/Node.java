@@ -1,14 +1,18 @@
-package javaTrieLibrary;
+package net.sanjav.javaTrieLibrary;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.sanjav.javaTrieLibrary.unittests.CharPopularityModel;
+
 public class Node {
 	Node parent;
 	char data;
 	int wordCount;
+	int frequency = 0; //general frequency if it makesAWord(), else 0
+	int popularity = 0; //sum of frequency of all the words contained in that subtree
 	private boolean makesAWord = false;
 	Map<Character, Node> children;
 	
@@ -36,6 +40,14 @@ public class Node {
 	
 	public char getData() {
 		return data;
+	}
+	
+	public int getFrequency() {
+		return this.frequency;
+	}
+	
+	public int getPopularity() {
+		return this.popularity;
 	}
 	
 	public int getWordCount() {
@@ -74,6 +86,41 @@ public class Node {
 		return false;
 	}
 	
+	public List<CharPopularityModel> getNextCharsWithPopularity(char[] prefix) {
+		List<CharPopularityModel> list = new ArrayList<>();
+		Node subrootNode = getPrefixSubroot(prefix);
+		
+		if (subrootNode != null) {
+		    for (Node node : subrootNode.getChildren()) {
+			    list.add(new CharPopularityModel(node.getData(), node.getPopularity()));
+		    }
+		}
+		
+		return list;
+	}
+	
+	private Node getPrefixSubroot(char[] prefix) {
+		Node currentNode = this;
+		for (char c: prefix) {
+			if (currentNode.keyExists(c)) {
+				currentNode = currentNode.getChildNode(c);
+			} else {
+				currentNode = null;
+				break;
+			}
+		}
+		
+		return currentNode;
+	}
+	
+	private void incrementPopularity(int frequency) {
+		this.popularity += frequency;
+	}
+	
+	private void setFrequency(int frequency) {
+		this.frequency = frequency;
+	}
+	
 	private Node addChildNode(char key) {
 		if (! children.containsKey(key)) {
 			children.put(key, new Node(key));
@@ -82,22 +129,24 @@ public class Node {
 		return children.get(key);
 	}
 	
-	public void insertWord(char[] word) {
+	public void insertWord(char[] word, int frequency) {
 		if (containsWord(word)) {
 			return; //If already contains, just ignore.
 		}
 		
-		insertWord(word, 0);
+		insertWord(word, 0, frequency);
 	}
 	
-	private void insertWord(char[] word, int charPointer) {
+	private void insertWord(char[] word, int charPointer, int frequency) {
 		Node node = addChildNode(word[charPointer]);
 		this.incrementWordCount();
+		this.incrementPopularity(frequency);
 		
 		if (charPointer == word.length - 1) {
 			node.setMakesAWord(true);
+			node.setFrequency(frequency);
 		} else {
-			node.insertWord(word, charPointer+1);
+			node.insertWord(word, charPointer+1, frequency);
 		}
 	}
 	
@@ -115,17 +164,8 @@ public class Node {
 	
 	public List<String> findWordsByPrefix(char[] prefix) {
 		//find root substring node
-		Node currentNode = this;
-		for (char c: prefix) {
-			if (currentNode.keyExists(c)) {
-				currentNode = currentNode.getChildNode(c);
-			} else {
-				currentNode = null;
-				break;
-			}
-		}
+		Node subrootNode = getPrefixSubroot(prefix);
 		
-		Node subrootNode = currentNode;
 		if (subrootNode == null || (! subrootNode.hasChildren())) {
 			return new ArrayList<String>(); //No words found
 		}
